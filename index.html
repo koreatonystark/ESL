@@ -115,6 +115,37 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 #resize-handle::after{content:'';width:26px;height:3px;border-radius:2px;background:var(--border);}
 #resize-handle.hidden{display:none;}
 #notes-panel{flex:1;overflow-y:auto;padding:22px 32px 80px;scrollbar-width:thin;scrollbar-color:var(--border) transparent;line-height:1.8;position:relative;}
+
+/* PC: 좌우 분할 레이아웃 */
+@media(min-width:641px){
+  #content-area.has-video{flex-direction:row;}
+  #content-area.has-video #video-panel{
+    width:50%;min-width:50%;flex-shrink:0;
+    display:flex;flex-direction:column;
+    background:#000;overflow:hidden;
+  }
+  #content-area.has-video #yt-wrap{
+    flex:1;padding-top:0;height:100%;
+    position:relative;
+  }
+  #content-area.has-video #yt-frame{position:absolute;inset:0;width:100%;height:100%;}
+  #content-area.has-video #resize-handle{
+    width:5px;height:auto;
+    border-top:none;border-bottom:none;
+    border-left:1px solid var(--border);border-right:1px solid var(--border);
+    cursor:ew-resize;flex-direction:column;
+    flex-shrink:0;
+  }
+  #content-area.has-video #resize-handle::after{
+    width:3px;height:26px;
+  }
+  #content-area.has-video #notes-panel{
+    flex:1;min-width:0;
+  }
+  #content-area.has-video #marker-fab{
+    position:absolute;bottom:18px;right:16px;
+  }
+}
 mark.hl-y{background:var(--hl-y);color:inherit;border-radius:2px;padding:0 1px;}
 mark.hl-r{background:var(--hl-r);color:inherit;border-radius:2px;padding:0 1px;}
 
@@ -295,6 +326,7 @@ let org         = {order:[], deleted:[]};
 let hlStore     = {};
 let activeTab   = 'all';
 let activeSIdx  = -1;
+let videoPctH   = 50;  // PC 좌우 비율 (%)
 let sidebarOpen = true;
 let videoPct    = 56.25;
 let activeMarker= null;
@@ -564,7 +596,15 @@ function updateNavBtns(){
 // ═══════════════════════════════════════
 function getYTId(url){if(!url)return'';const p=[/[?&]v=([^&#]+)/,/youtu\.be\/([^?&#]+)/,/embed\/([^?&#]+)/,/shorts\/([^?&#]+)/];for(const r of p){const m=url.match(r);if(m)return m[1];}return'';}
 function loadVideo(url){document.getElementById('yt-frame').src=getYTId(url)?`https://www.youtube.com/embed/${getYTId(url)}?rel=0&modestbranding=1&playsinline=1`:'about:blank';}
-function applyLayout(){const hasV=activeSIdx>=0&&getYTId(sheetItems[activeSIdx]?.vid||'');document.getElementById('video-panel').classList.toggle('hidden',!hasV);document.getElementById('resize-handle').classList.toggle('hidden',!hasV);}
+function applyLayout(){
+  const hasV=activeSIdx>=0&&getYTId(sheetItems[activeSIdx]?.vid||'');
+  const ca=document.getElementById('content-area');
+  const vp=document.getElementById('video-panel');
+  const rh=document.getElementById('resize-handle');
+  ca.classList.toggle('has-video',hasV);
+  vp.classList.toggle('hidden',!hasV);
+  rh.classList.toggle('hidden',!hasV);
+}
 
 // ═══════════════════════════════════════
 //  NOTES
@@ -622,14 +662,41 @@ function changeHighlight(cls){if(!hlPopupTarget)return;hlPopupTarget.className=c
 //  RESIZE
 // ═══════════════════════════════════════
 (function(){
-  const h=document.getElementById('resize-handle');let drag=false,sy=0,sp=0;
-  const move=y=>{if(!drag)return;const dy=y-sy,ch=document.getElementById('content-area').offsetHeight;videoPct=Math.max(20,Math.min(85,sp+(dy/ch)*100*(100/56.25)));document.getElementById('yt-wrap').style.paddingTop=videoPct+'%';};
-  h.addEventListener('mousedown',e=>{drag=true;sy=e.clientY;sp=videoPct;document.body.style.userSelect='none';document.body.style.cursor='ns-resize';});
-  window.addEventListener('mousemove',e=>move(e.clientY));
-  window.addEventListener('mouseup',()=>{if(drag){drag=false;document.body.style.userSelect='';document.body.style.cursor='';}});
-  h.addEventListener('touchstart',e=>{drag=true;sy=e.touches[0].clientY;sp=videoPct;},{passive:true});
-  window.addEventListener('touchmove',e=>{if(drag)move(e.touches[0].clientY);},{passive:true});
-  window.addEventListener('touchend',()=>{drag=false;});
+  const h=document.getElementById('resize-handle');
+  let drag=false,startPos=0,startPct=0;
+
+  function isPC(){return window.innerWidth>640&&document.getElementById('content-area').classList.contains('has-video');}
+
+  function onStart(pos){
+    drag=true;startPos=pos;
+    startPct=isPC()?videoPctH:videoPct;
+    document.body.style.userSelect='none';
+    document.body.style.cursor=isPC()?'ew-resize':'ns-resize';
+  }
+  function onMove(pos){
+    if(!drag)return;
+    const ca=document.getElementById('content-area');
+    if(isPC()){
+      // 좌우: 비디오 패널 너비 %
+      const d=pos-startPos,total=ca.offsetWidth;
+      videoPctH=Math.max(25,Math.min(75,startPct+(d/total)*100));
+      document.getElementById('video-panel').style.width=videoPctH+'%';
+      document.getElementById('video-panel').style.minWidth=videoPctH+'%';
+    }else{
+      // 상하
+      const d=pos-startPos,total=ca.offsetHeight;
+      videoPct=Math.max(20,Math.min(85,startPct+(d/total)*100*(100/56.25)));
+      document.getElementById('yt-wrap').style.paddingTop=videoPct+'%';
+    }
+  }
+  function onEnd(){if(drag){drag=false;document.body.style.userSelect='';document.body.style.cursor='';}}
+
+  h.addEventListener('mousedown',e=>{e.preventDefault();onStart(isPC()?e.clientX:e.clientY);});
+  window.addEventListener('mousemove',e=>onMove(isPC()?e.clientX:e.clientY));
+  window.addEventListener('mouseup',onEnd);
+  h.addEventListener('touchstart',e=>{onStart(isPC()?e.touches[0].clientX:e.touches[0].clientY);},{passive:true});
+  window.addEventListener('touchmove',e=>{if(drag)onMove(isPC()?e.touches[0].clientX:e.touches[0].clientY);},{passive:true});
+  window.addEventListener('touchend',onEnd);
 })();
 
 // ═══════════════════════════════════════
