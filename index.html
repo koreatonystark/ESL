@@ -303,7 +303,7 @@ mark.hl-r{background:var(--hl-red);color:inherit;border-radius:2px;padding:0 1px
 const SHEETS_URL  = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQlEaEIaiAMhCcEAsxlTV_CKEOzEaTlNBNeE80gBaxHhsrFQ1LdM-oJod1Hq_N-qjF2a1TxvDCHAOlK/pub?gid=0&single=true&output=csv";
 const PW_KEY      = 'esl_pw_hash';
 const BIO_KEY     = 'esl_bio_enabled';
-const HL_KEY      = 'esl_highlights'; // {idx: [{id,cls},...]}
+const HL_KEY      = 'esl_hl_html'; // {idx: innerHTML string}
 
 // ════════════════════════════════════════════
 //  STATE
@@ -313,7 +313,7 @@ let activeIdx   = -1;
 let sidebarOpen = true;
 let videoPct    = 56.25;
 let activeMarker= null;   // null | 'y' | 'r'
-let highlights  = {};     // {idx: [ {id, cls} ]}
+let hlStore     = {};     // {idx: html string}  ← localStorage 캐시
 let hlPopupTarget = null; // 현재 팝업 대상 <mark> 요소
 
 // ════════════════════════════════════════════
@@ -379,7 +379,7 @@ function skipBio(){enterApp();}
 
 function enterApp(){
   document.getElementById('auth-screen').style.display='none';
-  loadHighlights();
+  loadHlStore();
   loadData();
 }
 
@@ -405,27 +405,21 @@ function initAuth(){
 }
 
 // ════════════════════════════════════════════
-//  HIGHLIGHT STORAGE
-//  저장 구조: {idx: [{id, cls}]}
-//  id = notes-panel 내 mark 요소에 부여된 data-hlid
+//  HIGHLIGHT STORAGE  (localStorage에 HTML 직접 저장)
 // ════════════════════════════════════════════
-function loadHighlights(){
-  try{highlights=JSON.parse(localStorage.getItem(HL_KEY)||'{}');}catch(e){highlights={};}
+function loadHlStore(){
+  try{hlStore=JSON.parse(localStorage.getItem(HL_KEY)||'{}');}catch(e){hlStore={};}
 }
-function saveHighlights(){
-  localStorage.setItem(HL_KEY,JSON.stringify(highlights));
+function saveHlHtml(idx,html){
+  hlStore[idx]=html;
+  try{localStorage.setItem(HL_KEY,JSON.stringify(hlStore));}catch(e){}
 }
-
-// 노트 렌더 후 저장된 하이라이트 재적용
-function applyStoredHighlights(idx){
-  const list=(highlights[idx]||[]);
-  if(!list.length)return;
-  // mark 요소들은 renderNote 직후 data-hlid로 식별
-  // → 이미 renderNote가 mark 태그를 생성해두므로 여기선 cls만 적용
-  list.forEach(({id,cls})=>{
-    const el=document.querySelector(`#notes-panel mark[data-hlid="${id}"]`);
-    if(el){el.className=cls;}
-  });
+function deleteHlHtml(idx){
+  delete hlStore[idx];
+  try{localStorage.setItem(HL_KEY,JSON.stringify(hlStore));}catch(e){}
+}
+function hasHighlight(idx){
+  return !!hlStore[idx];
 }
 
 // ════════════════════════════════════════════
@@ -531,28 +525,18 @@ function hideHlPopup(){
 
 function removeHighlight(){
   if(!hlPopupTarget)return;
-  const id=hlPopupTarget.dataset.hlid;
-  // DOM: mark를 풀어서 텍스트 노드로 대체
   const parent=hlPopupTarget.parentNode;
   while(hlPopupTarget.firstChild)parent.insertBefore(hlPopupTarget.firstChild,hlPopupTarget);
   parent.removeChild(hlPopupTarget);
-  // Storage
-  if(highlights[activeIdx])
-    highlights[activeIdx]=highlights[activeIdx].filter(h=>h.id!==id);
-  saveHighlights();
   hideHlPopup();
+  saveCurrentHtml();
 }
 
 function changeHighlight(cls){
   if(!hlPopupTarget)return;
-  const id=hlPopupTarget.dataset.hlid;
   hlPopupTarget.className=cls;
-  if(highlights[activeIdx]){
-    const h=highlights[activeIdx].find(h=>h.id===id);
-    if(h)h.cls=cls;
-    saveHighlights();
-  }
   hideHlPopup();
+  saveCurrentHtml();
 }
 
 // 팝업 외부 클릭 닫기
@@ -621,7 +605,7 @@ function renderList(filter=''){
       <div>
         <div class="item-label">${esc(it.title)}</div>
         ${it.vid?'<div class="item-vid">▶ 영상 있음</div>':''}
-        ${(highlights[i]||[]).length?'<div class="item-vid" style="color:#facc15">🖊 하이라이트</div>':''}
+        ${hasHighlight(i)?'<div class="item-vid" style="color:#facc15">🖊 하이라이트</div>':''}
       </div>
     </div>`).join('');
   list.querySelectorAll('.list-item').forEach(el=>el.addEventListener('click',()=>selectItem(+el.dataset.idx)));
@@ -638,10 +622,13 @@ function selectItem(idx){
   document.getElementById('current-title').textContent=it.title;
   renderList(document.getElementById('search').value);
   loadVideo(it.vid);
-  renderNote(it.note);
-  // 하이라이트 재적용: renderNote 후 DOM에 mark 태그가 있을 리 없으므로
-  // 저장된 하이라이트는 별도 DOM 주입 방식으로 복원
-  restoreHighlights(idx);
+  // 하이라이트 저장본이 있으면 그걸 바로 표시, 없으면 원본 마크다운 렌더
+  if(hlStore[idx]){
+    document.getElementById('notes-panel').innerHTML=hlStore[idx];
+    reattachMarkListeners();
+  } else {
+    renderNote(it.note);
+  }
   applyLayout();
   updateNavBtns();
   if(window.innerWidth<=640){document.getElementById('sidebar').classList.add('collapsed');sidebarOpen=false;}
@@ -685,28 +672,17 @@ function renderNote(md){
 }
 
 // ════════════════════════════════════════════
-//  HIGHLIGHT RESTORE
-//  저장된 하이라이트를 텍스트 매칭으로 복원
-//  (DOM이 새로 렌더되므로 id 기반 복원 불가 → 별도 저장 구조 사용)
+//  HIGHLIGHT SAVE / RESTORE
 // ════════════════════════════════════════════
-// 실제로는 선택 범위를 serialise하기 복잡하므로
-// 하이라이트된 HTML 자체를 저장하고 복원하는 방식 사용
-const hlHtmlStore = {}; // {idx: innerHTML-with-marks}
-
-function restoreHighlights(idx){
-  if(hlHtmlStore[idx]!==undefined){
-    document.getElementById('notes-panel').innerHTML=hlHtmlStore[idx];
-    reattachMarkListeners();
-  }
-}
-
 function saveCurrentHtml(){
   if(activeIdx<0)return;
-  hlHtmlStore[activeIdx]=document.getElementById('notes-panel').innerHTML;
-  // highlights 배열도 mark 요소 기준으로 동기화
-  const marks=[...document.querySelectorAll('#notes-panel mark[data-hlid]')];
-  highlights[activeIdx]=marks.map(m=>({id:m.dataset.hlid,cls:m.className}));
-  saveHighlights();
+  const html=document.getElementById('notes-panel').innerHTML;
+  const hasMarks=document.querySelector('#notes-panel mark[data-hlid]');
+  if(hasMarks){
+    saveHlHtml(activeIdx,html);
+  } else {
+    deleteHlHtml(activeIdx); // 하이라이트 없으면 저장 항목 삭제
+  }
   renderList(document.getElementById('search').value);
 }
 
@@ -720,7 +696,7 @@ function reattachMarkListeners(){
   });
 }
 
-// mouseup 핸들러 수정: 하이라이트 적용 후 innerHTML 저장
+// ── 하이라이트 적용 (mouseup) ──
 document.getElementById('notes-panel').addEventListener('mouseup',e=>{
   if(activeIdx<0)return;
   const mark=e.target.closest('mark[data-hlid]');
@@ -736,31 +712,11 @@ document.getElementById('notes-panel').addEventListener('mouseup',e=>{
     const mk=document.createElement('mark');
     mk.className=activeMarker==='y'?'hl-y':'hl-r';
     mk.dataset.hlid=hlId;
-    mk.addEventListener('mouseup',ev=>{ev.stopPropagation();showHlPopup(mk,ev.clientX,ev.clientY);});
     range.surroundContents(mk);
     sel.removeAllRanges();
-    saveCurrentHtml();
+    saveCurrentHtml(); // localStorage에 즉시 저장
   }catch(err){sel.removeAllRanges();}
 });
-
-// removeHighlight / changeHighlight도 저장 후 재등록
-const _origRemove=removeHighlight;
-removeHighlight=function(){
-  if(!hlPopupTarget)return;
-  const id=hlPopupTarget.dataset.hlid;
-  const parent=hlPopupTarget.parentNode;
-  while(hlPopupTarget.firstChild)parent.insertBefore(hlPopupTarget.firstChild,hlPopupTarget);
-  parent.removeChild(hlPopupTarget);
-  hideHlPopup();
-  saveCurrentHtml();
-};
-const _origChange=changeHighlight;
-changeHighlight=function(cls){
-  if(!hlPopupTarget)return;
-  hlPopupTarget.className=cls;
-  hideHlPopup();
-  saveCurrentHtml();
-};
 
 // ════════════════════════════════════════════
 //  LAYOUT
