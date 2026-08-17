@@ -167,7 +167,7 @@ mark.hl-r{background:var(--hl-red);color:inherit;border-radius:2px;padding:0 1px
 .fs-btn.active-folder{color:var(--accent);font-weight:600;}
 
 /* 모달 (폴더 이름 입력) */
-#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:400;display:none;align-items:center;justify-content:center;}
+#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;display:none;align-items:center;justify-content:center;}
 #modal-overlay.show{display:flex;}
 .modal-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 20px;width:100%;max-width:300px;}
 .modal-title{font-size:15px;font-weight:700;margin-bottom:14px;}
@@ -301,13 +301,13 @@ mark.hl-r{background:var(--hl-red);color:inherit;border-radius:2px;padding:0 1px
   <!-- 폴더 탭 -->
   <div id="folder-tab-bar">
     <!-- JS로 렌더 -->
-    <button id="add-folder-btn" title="폴더 추가" onclick="addFolder()">＋</button>
+    <button id="add-folder-btn" title="폴더 추가">＋</button>
   </div>
 
   <!-- 폴더 관리 툴바 (All 탭이 아닐 때) -->
   <div id="folder-toolbar">
-    <button class="ft-btn" onclick="renameCurrentFolder()">✏ 이름 변경</button>
-    <button class="ft-btn danger" onclick="deleteCurrentFolder()">🗑 폴더 삭제</button>
+    <button class="ft-btn" id="rename-folder-btn">✏ 이름 변경</button>
+    <button class="ft-btn danger" id="delete-folder-btn">🗑 폴더 삭제</button>
   </div>
 
   <div class="search-wrap">
@@ -801,11 +801,11 @@ function openModal(title,defaultVal,cb){
   document.getElementById('modal-title').textContent=title;
   document.getElementById('modal-input').value=defaultVal||'';
   modalCallback=cb;
-  document.getElementById('modal-overlay').classList.add('show');
-  setTimeout(()=>document.getElementById('modal-input').focus(),50);
+  document.getElementById('modal-overlay').style.display='flex';
+  setTimeout(()=>document.getElementById('modal-input').focus(),80);
 }
-function modalOk(){const v=document.getElementById('modal-input').value;modalClose();if(modalCallback)modalCallback(v);}
-function modalClose(){document.getElementById('modal-overlay').classList.remove('show');modalCallback=null;}
+function modalOk(){const v=(document.getElementById('modal-input').value||'').trim();modalClose();if(modalCallback&&v)modalCallback(v);}
+function modalClose(){document.getElementById('modal-overlay').style.display='none';modalCallback=null;}
 
 // ════════════════════════════════════════
 //  RESIZE HANDLE
@@ -828,7 +828,7 @@ function toggleSidebar(){sidebarOpen=!sidebarOpen;document.getElementById('sideb
 document.getElementById('search').addEventListener('input',e=>renderList(e.target.value));
 document.addEventListener('keydown',e=>{
   if(document.getElementById('auth-screen').style.display!=='none')return;
-  if(document.getElementById('modal-overlay').classList.contains('show'))return;
+  if(document.getElementById('modal-overlay').style.display==='flex')return;
   if(e.key==='ArrowRight'||e.key==='ArrowDown'){e.preventDefault();navigate(1);}
   if(e.key==='ArrowLeft'||e.key==='ArrowUp'){e.preventDefault();navigate(-1);}
   if(e.key==='Escape'){setMarker(null);closeItemMenu();closeFolderSubmenu();}
@@ -838,6 +838,9 @@ function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 // ════════════════════════════════════════
 //  INIT
 // ════════════════════════════════════════
+document.getElementById('add-folder-btn').addEventListener('click',addFolder);
+document.getElementById('rename-folder-btn').addEventListener('click',renameCurrentFolder);
+document.getElementById('delete-folder-btn').addEventListener('click',deleteCurrentFolder);
 initAuth();
 </script>
 </body>
