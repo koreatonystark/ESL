@@ -299,10 +299,7 @@ mark.hl-r{background:var(--hl-red);color:inherit;border-radius:2px;padding:0 1px
   </div>
 
   <!-- 폴더 탭 -->
-  <div id="folder-tab-bar">
-    <!-- JS로 렌더 -->
-    <button id="add-folder-btn" title="폴더 추가">＋</button>
-  </div>
+  <div id="folder-tab-bar"></div>
 
   <!-- 폴더 관리 툴바 (All 탭이 아닐 때) -->
   <div id="folder-toolbar">
@@ -493,9 +490,8 @@ async function loadData(){
 // ════════════════════════════════════════
 function renderFolderTabs(){
   const bar=document.getElementById('folder-tab-bar');
-  const addBtn=document.getElementById('add-folder-btn');
-  // 기존 탭 제거 (add-folder-btn 제외)
-  [...bar.querySelectorAll('.folder-tab')].forEach(t=>t.remove());
+  // 탭 바 전체 재구성
+  bar.innerHTML='';
 
   const tabs=[
     {id:'all',label:'전체'},
@@ -506,9 +502,17 @@ function renderFolderTabs(){
     const el=document.createElement('button');
     el.className='folder-tab'+(tab.id===activeTab?' active':'')+(tab.del?' del-tab':'');
     el.textContent=tab.label;
-    el.onclick=()=>switchTab(tab.id);
-    bar.insertBefore(el,addBtn);
+    el.addEventListener('click',()=>switchTab(tab.id));
+    bar.appendChild(el);
   });
+
+  // ＋ 버튼 항상 맨 끝에
+  const addBtn=document.createElement('button');
+  addBtn.id='add-folder-btn';
+  addBtn.title='폴더 추가';
+  addBtn.textContent='＋';
+  addBtn.addEventListener('click',addFolder);
+  bar.appendChild(addBtn);
 
   // 폴더 관리 툴바
   const tb=document.getElementById('folder-toolbar');
@@ -839,7 +843,6 @@ function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 // ════════════════════════════════════════
 //  INIT
 // ════════════════════════════════════════
-document.getElementById('add-folder-btn').addEventListener('click',addFolder);
 document.getElementById('rename-folder-btn').addEventListener('click',renameCurrentFolder);
 document.getElementById('delete-folder-btn').addEventListener('click',deleteCurrentFolder);
 initAuth();
