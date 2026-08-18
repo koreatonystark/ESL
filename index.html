@@ -450,7 +450,7 @@ async function loadData(){
     sheetItems=[];
     results.forEach(({id,rows})=>{
       rows.filter(r=>r.title).forEach(r=>{
-        sheetItems.push({title:r.title,vid:r.vid||'',note:r.note||'',cat:(r.cat||r.category||'').trim(),sheetId:id});
+        sheetItems.push({title:r.title,vid:r.vid||'',note:r.note||'',cat:(r.cat||r.category||'').trim(),no:parseInt(r.no)||9999,sheetId:id});
       });
     });
     if(!sheetItems.length)throw new Error('항목 없음');
@@ -489,8 +489,18 @@ function renderHome(){
 
   sheetIds.forEach((sid,si)=>{
     const idxsInSheet=org.order.filter(i=>sheetItems[i]?.sheetId===sid);
+    // 카테고리별 최소 no값 수집 후 정렬
+    const catNoMap={};
+    idxsInSheet.forEach(i=>{
+      const c=sheetItems[i]?.cat||'';
+      if(c){
+        const n=sheetItems[i]?.no??9999;
+        if(catNoMap[c]===undefined||n<catNoMap[c])catNoMap[c]=n;
+      }
+    });
     const seen=new Set(), cats=[];
     idxsInSheet.forEach(i=>{const c=sheetItems[i]?.cat||'';if(c&&!seen.has(c)){seen.add(c);cats.push(c);}});
+    cats.sort((a,b)=>(catNoMap[a]??9999)-(catNoMap[b]??9999));
     const nocat=idxsInSheet.filter(i=>!sheetItems[i]?.cat);
 
     // 시트 구분선 (두 번째 시트부터)
