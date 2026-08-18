@@ -1,4 +1,4 @@
-const CACHE = 'videonote-v1';
+const CACHE = 'videonote-v2';
 const ASSETS = [
   '/ESL/',
   '/ESL/index.html',
