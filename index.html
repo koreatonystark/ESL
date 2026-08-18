@@ -77,6 +77,18 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 /* HOME: 카테고리 카드 그리드 */
 #home-screen{flex:1;overflow-y:auto;padding:20px 16px;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
 .cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;}
+.sheet-divider{
+  grid-column:1/-1;
+  display:flex;align-items:center;gap:12px;
+  margin:8px 0 4px;padding:0;
+}
+.sheet-divider span{
+  font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--text3);white-space:nowrap;
+}
+.sheet-divider::before,.sheet-divider::after{
+  content:'';flex:1;height:1px;background:var(--border);
+}
 .cat-card{
   background:var(--surface);border:1px solid var(--border);border-radius:14px;
   padding:22px 18px;cursor:pointer;
@@ -321,7 +333,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 // ════════════════════════════════════════
 //  CONFIG
 // ════════════════════════════════════════
-const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQlEaEIaiAMhCcEAsxlTV_CKEOzEaTlNBNeE80gBaxHhsrFQ1LdM-oJod1Hq_N-qjF2a1TxvDCHAOlK/pub?gid=0&single=true&output=csv';
+const SHEETS = [
+  { id:'sheet1', url:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQlEaEIaiAMhCcEAsxlTV_CKEOzEaTlNBNeE80gBaxHhsrFQ1LdM-oJod1Hq_N-qjF2a1TxvDCHAOlK/pub?gid=0&single=true&output=csv' },
+  { id:'sheet2', url:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQlEaEIaiAMhCcEAsxlTV_CKEOzEaTlNBNeE80gBaxHhsrFQ1LdM-oJod1Hq_N-qjF2a1TxvDCHAOlK/pub?gid=1699238382&single=true&output=csv' },
+];
 const K_PW  = 'esl_pw';
 const K_BIO = 'esl_bio';
 const K_ORG = 'vn_org';  // {order:[idx,...], deleted:[idx,...]}
@@ -332,6 +347,7 @@ const K_ORG = 'vn_org';  // {order:[idx,...], deleted:[idx,...]}
 let sheetItems  = [];
 let org         = {order:[], deleted:[]};
 let activeCat   = '';   // 현재 카테고리
+let activeCat_sheet = null; // 현재 카테고리의 시트ID
 let activeSIdx  = -1;
 let listVisible = true;
 let videoPct    = 56.25;
@@ -416,10 +432,15 @@ async function loadData(){
   const ov=document.getElementById('loading-overlay'),msg=document.getElementById('load-msg'),rb=document.getElementById('retry-btn');
   ov.style.display='flex';rb.style.display='none';msg.textContent='불러오는 중…';
   try{
-    const resp=await fetch(SHEETS_URL+'&t='+Date.now());
-    if(!resp.ok)throw new Error('응답 오류');
-    const rows=parseCSV(await resp.text());
-    sheetItems=rows.filter(r=>r.title).map(r=>({title:r.title,vid:r.vid||'',note:r.note||'',cat:(r.cat||r.category||'').trim()}));
+    const results = await Promise.all(SHEETS.map(s=>
+      fetch(s.url+'&t='+Date.now()).then(r=>{if(!r.ok)throw new Error('응답 오류');return r.text();}).then(t=>({id:s.id,rows:parseCSV(t)}))
+    ));
+    sheetItems=[];
+    results.forEach(({id,rows})=>{
+      rows.filter(r=>r.title).forEach(r=>{
+        sheetItems.push({title:r.title,vid:r.vid||'',note:r.note||'',cat:(r.cat||r.category||'').trim(),sheetId:id});
+      });
+    });
     if(!sheetItems.length)throw new Error('항목 없음');
     syncOrg();
     ov.style.display='none';
@@ -448,45 +469,62 @@ function goHome(){
 
 function renderHome(){
   const grid=document.getElementById('cat-grid');
-  const activeIdxs=new Set(org.order);
-  // 카테고리 수집 (순서 유지)
-  const seen=new Set(),cats=[];
-  org.order.forEach(i=>{const c=sheetItems[i]?.cat||'';if(c&&!seen.has(c)){seen.add(c);cats.push(c);}});
-  // 카테고리 없는 항목
-  const nocat=org.order.filter(i=>!sheetItems[i]?.cat);
 
+  // 시트별로 카테고리 수집
+  const sheetIds=[...new Set(sheetItems.map(it=>it.sheetId))];
   let html='';
-  cats.forEach((cat,i)=>{
-    const count=org.order.filter(j=>sheetItems[j]?.cat===cat).length;
-    html+=`<div class="cat-card" data-cat="${esc(cat)}" style="animation-delay:${i*0.04}s">
-      <div class="cat-card-icon">${getCatIcon(cat,i)}</div>
-      <div class="cat-card-name">${esc(cat)}</div>
-      <div class="cat-card-count">${count}개</div>
-    </div>`;
+  let cardIdx=0;
+
+  sheetIds.forEach((sid,si)=>{
+    const idxsInSheet=org.order.filter(i=>sheetItems[i]?.sheetId===sid);
+    const seen=new Set(), cats=[];
+    idxsInSheet.forEach(i=>{const c=sheetItems[i]?.cat||'';if(c&&!seen.has(c)){seen.add(c);cats.push(c);}});
+    const nocat=idxsInSheet.filter(i=>!sheetItems[i]?.cat);
+
+    // 시트 구분선 (두 번째 시트부터)
+    if(si>0){
+      html+=`<div class="sheet-divider"><span>시트 ${si+1}</span></div>`;
+    }
+
+    cats.forEach((cat)=>{
+      const count=idxsInSheet.filter(j=>sheetItems[j]?.cat===cat).length;
+      html+=`<div class="cat-card" data-cat="${esc(cat)}" data-sheet="${sid}" style="animation-delay:${cardIdx*0.04}s">
+        <div class="cat-card-icon">${getCatIcon(cat,cardIdx)}</div>
+        <div class="cat-card-name">${esc(cat)}</div>
+        <div class="cat-card-count">${count}개</div>
+      </div>`;
+      cardIdx++;
+    });
+    if(nocat.length){
+      html+=`<div class="cat-card" data-cat="__nocat__" data-sheet="${sid}" style="animation-delay:${cardIdx*0.04}s">
+        <div class="cat-card-icon">📄</div>
+        <div class="cat-card-name">미분류</div>
+        <div class="cat-card-count">${nocat.length}개</div>
+      </div>`;
+      cardIdx++;
+    }
   });
-  if(nocat.length){
-    html+=`<div class="cat-card" data-cat="__nocat__" style="animation-delay:${cats.length*0.04}s">
-      <div class="cat-card-icon">📄</div>
-      <div class="cat-card-name">미분류</div>
-      <div class="cat-card-count">${nocat.length}개</div>
-    </div>`;
-  }
+
   // Del 카드
   if(org.deleted.length){
-    html+=`<div class="cat-card del-card" data-cat="__del__" style="animation-delay:${(cats.length+1)*0.04}s">
+    html+=`<div class="cat-card del-card" data-cat="__del__" data-sheet="" style="animation-delay:${cardIdx*0.04}s">
       <div class="cat-card-icon">🗑</div>
       <div class="cat-card-name">삭제됨</div>
       <div class="cat-card-count">${org.deleted.length}개</div>
     </div>`;
   }
+
   grid.innerHTML=html;
-  grid.querySelectorAll('.cat-card').forEach(el=>el.addEventListener('click',()=>openCat(el.dataset.cat)));
+  grid.querySelectorAll('.cat-card').forEach(el=>
+    el.addEventListener('click',()=>openCat(el.dataset.cat, el.dataset.sheet||null))
+  );
 }
 
 // ════════════════════════════════════════
 //  CATEGORY → LIST
 // ════════════════════════════════════════
-function openCat(cat){
+function openCat(cat, sheetId=null){
+  activeCat_sheet=sheetId;
   activeCat=cat;activeSIdx=-1;
   document.getElementById('home-screen').style.display='none';
   document.getElementById('list-screen').classList.add('show');
@@ -513,8 +551,9 @@ function openCat(cat){
 
 function getCatItems(){
   if(activeCat==='__del__') return org.deleted.map(i=>({sIdx:i,item:sheetItems[i]})).filter(x=>x.item);
-  if(activeCat==='__nocat__') return org.order.filter(i=>!sheetItems[i]?.cat).map(i=>({sIdx:i,item:sheetItems[i]})).filter(x=>x.item);
-  return org.order.filter(i=>sheetItems[i]?.cat===activeCat).map(i=>({sIdx:i,item:sheetItems[i]})).filter(x=>x.item);
+  const bySheet=i=>!activeCat_sheet||sheetItems[i]?.sheetId===activeCat_sheet;
+  if(activeCat==='__nocat__') return org.order.filter(i=>bySheet(i)&&!sheetItems[i]?.cat).map(i=>({sIdx:i,item:sheetItems[i]})).filter(x=>x.item);
+  return org.order.filter(i=>bySheet(i)&&sheetItems[i]?.cat===activeCat).map(i=>({sIdx:i,item:sheetItems[i]})).filter(x=>x.item);
 }
 
 function renderItems(filter=''){
