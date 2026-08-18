@@ -66,6 +66,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 #topbar-title{font-size:16px;font-weight:700;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 #lock-btn{font-size:18px;background:none;border:none;cursor:pointer;padding:4px;opacity:.4;transition:opacity .15s;flex-shrink:0;}
 #lock-btn:hover{opacity:1;}
+.nav-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;cursor:pointer;color:var(--text2);font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;}
+.nav-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);}
+.nav-btn:disabled{opacity:.25;cursor:not-allowed;}
+.nav-btn.hidden{display:none;}
 
 /* ── SCREENS ── */
 #app{flex:1;overflow:hidden;display:flex;flex-direction:column;}
@@ -256,7 +260,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 
 <!-- TOPBAR -->
 <div id="topbar">
-  <button id="back-btn" onclick="goHome()">‹</button>
+  <button id="back-btn" onclick="goHome()" title="카드 메뉴로">‹</button>
+  <button class="nav-btn" id="prev-btn" title="이전">◀</button>
+  <button class="nav-btn" id="next-btn" title="다음">▶</button>
   <div id="topbar-title">Video Note</div>
   <button id="lock-btn" onclick="lockApp()">🔒</button>
 </div>
@@ -423,8 +429,12 @@ function goHome(){
   document.getElementById('home-screen').style.display='block';
   document.getElementById('list-screen').classList.remove('show');
   document.getElementById('back-btn').classList.remove('show');
+  document.getElementById('prev-btn').classList.add('hidden');
+  document.getElementById('next-btn').classList.add('hidden');
   document.getElementById('topbar-title').textContent='Video Note';
   document.getElementById('yt-frame').src='about:blank';
+  // 히스토리: 홈은 스택 초기화
+  history.replaceState({page:'home'}, '');
   renderHome();
 }
 
@@ -473,6 +483,8 @@ function openCat(cat){
   document.getElementById('home-screen').style.display='none';
   document.getElementById('list-screen').classList.add('show');
   document.getElementById('back-btn').classList.add('show');
+  document.getElementById('prev-btn').classList.remove('hidden');
+  document.getElementById('next-btn').classList.remove('hidden');
   const label=cat==='__del__'?'🗑 삭제됨':cat==='__nocat__'?'미분류':cat;
   document.getElementById('topbar-title').textContent=label;
   document.getElementById('notes-panel').innerHTML='<div class="placeholder"><div class="placeholder-icon">📋</div><h3>항목을 선택하세요</h3></div>';
@@ -481,10 +493,13 @@ function openCat(cat){
   document.getElementById('content-area').classList.remove('has-video');
   document.getElementById('yt-frame').src='about:blank';
   renderItems();
+  updateNavBtns();
   // 목록 보이기
   listVisible=true;
   document.getElementById('item-list').classList.remove('collapsed');
   document.getElementById('toggle-list-btn').textContent='목록 숨기기';
+  // 히스토리: 카테고리 진입 push
+  history.pushState({page:'cat', cat}, '');
 }
 
 function getCatItems(){
@@ -554,7 +569,10 @@ function navigate(dir){
 function updateNavBtns(){
   const vis=getCatItems().map(v=>v.sIdx);
   const pos=vis.indexOf(activeSIdx);
-  // topbar에 이전/다음 없으므로 키보드로만
+  const prevBtn=document.getElementById('prev-btn');
+  const nextBtn=document.getElementById('next-btn');
+  prevBtn.disabled = pos <= 0;
+  nextBtn.disabled = pos < 0 || pos >= vis.length - 1;
 }
 
 function toggleList(){
@@ -665,6 +683,15 @@ document.addEventListener('keydown',e=>{
 //  SEARCH
 // ════════════════════════════════════════
 document.getElementById('search-input').addEventListener('input',e=>renderItems(e.target.value));
+document.getElementById('prev-btn').addEventListener('click',()=>navigate(-1));
+document.getElementById('next-btn').addEventListener('click',()=>navigate(1));
+
+// 폰 뒤로가기 → 항상 홈(카드 메뉴), 스택 유지
+window.addEventListener('popstate', () => {
+  goHome();
+  // 홈에서 다시 뒤로가기 눌러도 앱 안에 머물도록 히스토리 재push
+  history.pushState({page:'home'}, '');
+});
 
 // ════════════════════════════════════════
 //  UTIL
@@ -681,6 +708,11 @@ if('serviceWorker' in navigator){
 // ════════════════════════════════════════
 //  INIT
 // ════════════════════════════════════════
+// 초기: 이전/다음 숨김 (홈 화면)
+document.getElementById('prev-btn').classList.add('hidden');
+document.getElementById('next-btn').classList.add('hidden');
+// 초기 히스토리
+history.replaceState({page:'home'}, '');
 initAuth();
 </script>
 </body>
