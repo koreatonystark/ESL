@@ -55,13 +55,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
   padding:10px 16px;display:flex;align-items:center;gap:10px;
   flex-shrink:0;min-height:48px;
 }
-#home-btn, #list-toggle-btn{
+#list-toggle-btn{
   background:none;border:1px solid var(--border);border-radius:8px;
   width:34px;height:34px;cursor:pointer;color:var(--text2);
-  align-items:center;justify-content:center;
+  display:flex;align-items:center;justify-content:center;
   transition:all .15s;flex-shrink:0;font-size:16px;
 }
-#home-btn:hover, #list-toggle-btn:hover{border-color:var(--accent);color:var(--accent);}
+#list-toggle-btn:hover{border-color:var(--accent);color:var(--accent);}
 #list-toggle-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(91,140,247,.1);}
 #topbar-title{font-size:16px;font-weight:700;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 #lock-btn{font-size:18px;background:none;border:none;cursor:pointer;padding:4px;opacity:.4;transition:opacity .15s;flex-shrink:0;}
@@ -106,6 +106,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
   transition:width .25s,min-width .25s;
 }
 #item-list.collapsed{width:0;min-width:0;}
+#main-menu-btn{
+  width:100%;padding:11px 14px;background:none;
+  border:none;border-bottom:1px solid var(--border);
+  color:var(--text2);font-size:14px;font-family:var(--font);
+  text-align:left;cursor:pointer;flex-shrink:0;
+  transition:background .12s,color .12s;
+}
+#main-menu-btn:hover{background:var(--surface2);color:var(--accent);}
 #list-search{padding:10px 10px 8px;border-bottom:1px solid var(--border);flex-shrink:0;}
 #list-search input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:14px;padding:8px 12px;outline:none;transition:border-color .15s;}
 #list-search input:focus{border-color:var(--accent);}
@@ -260,9 +268,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 
 <!-- TOPBAR -->
 <div id="topbar">
-  <!-- 홈으로 (홈화면에서는 숨김) -->
-  <button id="home-btn" title="카드 메뉴" style="display:none">⊞</button>
-  <!-- 목록 토글 (카테고리 화면에서만 표시) -->
   <button id="list-toggle-btn" title="목록" style="display:none">☰</button>
   <button class="nav-btn" id="prev-btn" title="이전">◀</button>
   <button class="nav-btn" id="next-btn" title="다음">▶</button>
@@ -283,6 +288,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 
     <!-- 사이드바 목록 -->
     <div id="item-list">
+      <button id="main-menu-btn" onclick="goHome()">← 메인화면</button>
       <div id="list-search"><input type="text" id="search-input" placeholder="검색…" autocomplete="off"></div>
       <div id="list-items"></div>
       <div id="list-footer">
@@ -431,7 +437,6 @@ function goHome(){
   activeCat='';activeSIdx=-1;
   document.getElementById('home-screen').style.display='block';
   document.getElementById('list-screen').classList.remove('show');
-  document.getElementById('home-btn').style.display='none';
   document.getElementById('list-toggle-btn').style.display='none';
   document.getElementById('prev-btn').classList.add('hidden');
   document.getElementById('next-btn').classList.add('hidden');
@@ -485,7 +490,6 @@ function openCat(cat){
   activeCat=cat;activeSIdx=-1;
   document.getElementById('home-screen').style.display='none';
   document.getElementById('list-screen').classList.add('show');
-  document.getElementById('home-btn').style.display='flex';
   document.getElementById('list-toggle-btn').style.display='flex';
   document.getElementById('list-toggle-btn').classList.add('active');
   document.getElementById('prev-btn').classList.remove('hidden');
@@ -690,11 +694,7 @@ document.addEventListener('keydown',e=>{
 //  SEARCH
 // ════════════════════════════════════════
 document.getElementById('search-input').addEventListener('input',e=>renderItems(e.target.value));
-document.getElementById('home-btn').addEventListener('click', goHome);
-document.getElementById('list-toggle-btn').addEventListener('click', ()=>{
-  toggleList();
-  // 목록 보이면 콘텐츠 영역은 그대로, 목록 숨기면 콘텐츠 전체 폭
-});
+document.getElementById('list-toggle-btn').addEventListener('click', toggleList);
 document.getElementById('prev-btn').addEventListener('click',()=>navigate(-1));
 document.getElementById('next-btn').addEventListener('click',()=>navigate(1));
 
@@ -723,7 +723,6 @@ if('serviceWorker' in navigator){
 // 초기: 이전/다음 숨김 (홈 화면)
 document.getElementById('prev-btn').classList.add('hidden');
 document.getElementById('next-btn').classList.add('hidden');
-document.getElementById('home-btn').style.display='none';
 document.getElementById('list-toggle-btn').style.display='none';
 // 초기 히스토리
 history.replaceState({page:'home'}, '');
