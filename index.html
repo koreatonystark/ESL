@@ -721,7 +721,7 @@ function renderNoteContent(text){
     s=s.replace(/`([^`]+)`/g,'<code style="background:rgba(255,255,255,.1);padding:1px 5px;border-radius:4px;font-size:.9em">$1</code>');
     // 인라인 이미지 마크다운 ![alt](url)
     s=s.replace(/!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g,(_,alt,url)=>
-      '<img src="'+url+'" alt="'+alt+'" style="max-width:100%;border-radius:8px;margin:6px 0;display:block;cursor:zoom-in" onclick="(function(el){el.style.maxWidth=el.style.maxWidth==='100%'?'none':'100%';})(this)">');
+      '<img src="'+url+'" alt="'+alt+'" style="max-width:100%;border-radius:8px;margin:6px 0;display:block;cursor:zoom-in" onclick="this.style.maxWidth=this.style.maxWidth===\'none\'?\'100%\':\'none\'">');
     // 인라인 링크 [text](url)
     s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline">$1</a>');
     return s;
@@ -789,7 +789,7 @@ function renderNoteContent(text){
       }
       // 이미지 URL
       if(/\.(png|jpg|jpeg|gif|webp|svg)(\?[^\s]*)?$/i.test(url)){
-        out.push('<div style="margin:10px 0"><img src="'+url+'" alt="" style="max-width:100%;border-radius:8px;display:block;cursor:zoom-in" onclick="(function(el){el.style.maxWidth=el.style.maxWidth==='100%'?'none':'100%';})(this)"></div>');
+        out.push('<div style="margin:10px 0"><img src="'+url+'" alt="" style="max-width:100%;border-radius:8px;display:block;cursor:zoom-in" onclick="this.style.maxWidth=this.style.maxWidth===\'none\'?\'100%\':\'none\'"></div>');
         return;
       }
       // 일반 URL
