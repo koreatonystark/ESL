@@ -212,6 +212,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 #notes-panel th{background:var(--surface2);color:#b0c4ff;font-weight:600;}
 #notes-panel hr{border:none;border-top:1px solid var(--border);margin:16px 0;}
 #notes-panel a{color:var(--accent);text-decoration:none;}
+#notes-panel img{max-width:100%;border-radius:8px;margin:8px 0;display:block;}
 #notes-panel strong{font-weight:600;color:#d4e0ff;}
 
 @media(max-width:640px){
@@ -699,7 +700,119 @@ document.addEventListener('mousedown',e=>{
 // ════════════════════════════════════════
 function getYTId(url){if(!url)return'';const p=[/[?&]v=([^&#]+)/,/youtu\.be\/([^?&#]+)/,/embed\/([^?&#]+)/,/shorts\/([^?&#]+)/];for(const r of p){const m=url.match(r);if(m)return m[1];}return'';}
 function loadVideo(url){document.getElementById('yt-frame').src=getYTId(url)?`https://www.youtube.com/embed/${getYTId(url)}?rel=0&modestbranding=1&playsinline=1`:'about:blank';}
-function renderNote(md){const p=document.getElementById('notes-panel');if(!md||!md.trim()){p.innerHTML='<div class="placeholder"><div class="placeholder-icon">📝</div><h3>노트 없음</h3></div>';return;}p.innerHTML=marked.parse(md);}
+function getYTIdFromUrl(url){
+  const m=url.match(/youtu\.be\/([^?&#\s]+)/)||url.match(/youtube\.com\/(?:watch\?v=|shorts\/)([^?&#\s]+)/);
+  return m?m[1]:'';
+}
+
+function renderNoteContent(text){
+  if(!text)return'';
+  const lines=text.split('\n');
+  const out=[];
+  let inList=false;
+
+  function flushList(){if(inList){out.push('</ul>');inList=false;}}
+
+  function inline(s){
+    // 볼드/이탤릭/코드
+    s=s.replace(/\*\*\*([^*]+)\*\*\*/g,'<strong><em>$1</em></strong>');
+    s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+    s=s.replace(/\*([^*]+)\*/g,'<em>$1</em>');
+    s=s.replace(/`([^`]+)`/g,'<code style="background:rgba(255,255,255,.1);padding:1px 5px;border-radius:4px;font-size:.9em">$1</code>');
+    // 인라인 이미지 마크다운 ![alt](url)
+    s=s.replace(/!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g,(_,alt,url)=>
+      '<img src="'+url+'" alt="'+alt+'" style="max-width:100%;border-radius:8px;margin:6px 0;display:block;cursor:zoom-in" onclick="(function(el){el.style.maxWidth=el.style.maxWidth==='100%'?'none':'100%';})(this)">');
+    // 인라인 링크 [text](url)
+    s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline">$1</a>');
+    return s;
+  }
+
+  lines.forEach(line=>{
+    const t=line.trim();
+
+    // 빈 줄
+    if(!t){flushList();out.push('<br>');return;}
+
+    // 구분선
+    if(/^-{3,}$/.test(t)){flushList();out.push('<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">');return;}
+
+    // 제목
+    const hm=t.match(/^(#{1,4})\s+(.+)/);
+    if(hm){
+      flushList();
+      const sz=['1.35em','1.15em','1.05em','1em'][hm[1].length-1];
+      const mt=hm[1].length===1?'20px':'14px';
+      out.push('<div style="font-size:'+sz+';font-weight:700;color:#b0c4ff;margin:'+mt+' 0 6px;border-bottom:'+(hm[1].length===1?'1px solid var(--border)':'none')+'">'+inline(hm[2])+'</div>');
+      return;
+    }
+
+    // 인용구
+    const qm=t.match(/^>\s*(.*)/);
+    if(qm){flushList();out.push('<div style="border-left:3px solid var(--accent);padding:5px 12px;margin:6px 0;background:rgba(91,140,247,.07);border-radius:0 6px 6px 0;color:var(--text2);font-size:14px">'+inline(qm[1])+'</div>');return;}
+
+    // 리스트
+    const lm=t.match(/^[-*]\s+(.+)/);
+    if(lm){
+      if(!inList){out.push('<ul style="margin:6px 0 6px 18px;padding:0">');inList=true;}
+      out.push('<li style="margin:3px 0;line-height:1.7;color:var(--text)">'+inline(lm[1])+'</li>');
+      return;
+    }
+
+    flushList();
+
+    // 단독 URL 줄
+    if(/^https?:\/\/\S+$/.test(t)){
+      const url=t;
+      // 유튜브: 썸네일 클릭 → 인앱 재생
+      const ytId=getYTIdFromUrl(url);
+      if(ytId){
+        const uid='yt_'+Math.random().toString(36).slice(2,7);
+        const embedSrc='https://www.youtube-nocookie.com/embed/'+ytId+'?autoplay=1&playsinline=1&rel=0';
+        out.push(
+          '<div id="'+uid+'" style="margin:12px 0;border-radius:10px;overflow:hidden;border:1px solid var(--border)">'
+          +'<div id="'+uid+'_t" style="position:relative;cursor:pointer;line-height:0" onclick="(function(){'
+          +'var w=document.getElementById(\''+uid+'_w\');'
+          +'var t=document.getElementById(\''+uid+'_t\');'
+          +'var f=document.getElementById(\''+uid+'_f\');'
+          +'f.src=\''+embedSrc+'\';t.style.display=\'none\';w.style.display=\'block\''
+          +'})()">'
+          +'<img src="https://img.youtube.com/vi/'+ytId+'/hqdefault.jpg" alt="" style="width:100%;height:auto;display:block">'
+          +'<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3)">'
+          +'<div style="width:56px;height:40px;background:#ff0000;border-radius:8px;display:flex;align-items:center;justify-content:center">'
+          +'<div style="width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-left:18px solid #fff;margin-left:4px"></div>'
+          +'</div></div></div>'
+          +'<div id="'+uid+'_w" style="display:none;position:relative;padding-bottom:56.25%;height:0">'
+          +'<iframe id="'+uid+'_f" src="" allowfullscreen allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none"></iframe>'
+          +'</div></div>'
+        );
+        return;
+      }
+      // 이미지 URL
+      if(/\.(png|jpg|jpeg|gif|webp|svg)(\?[^\s]*)?$/i.test(url)){
+        out.push('<div style="margin:10px 0"><img src="'+url+'" alt="" style="max-width:100%;border-radius:8px;display:block;cursor:zoom-in" onclick="(function(el){el.style.maxWidth=el.style.maxWidth==='100%'?'none':'100%';})(this)"></div>');
+        return;
+      }
+      // 일반 URL
+      out.push('<div style="margin:4px 0"><a href="'+url+'" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;word-break:break-all">'+url+'</a></div>');
+      return;
+    }
+
+    // 일반 텍스트
+    out.push('<div style="font-size:15px;line-height:1.8;color:var(--text);margin:2px 0">'+inline(t)+'</div>');
+  });
+
+  flushList();
+  return out.join('');
+}
+
+function renderNote(md){
+  const p=document.getElementById('notes-panel');
+  if(!md||!md.trim()){
+    p.innerHTML='<div class="placeholder"><div class="placeholder-icon">📝</div><h3>노트 없음</h3></div>';
+    return;
+  }
+  p.innerHTML=renderNoteContent(md);
+}
 function applyLayout(){
   const hasV=activeSIdx>=0&&getYTId(sheetItems[activeSIdx]?.vid||'');
   const ca=document.getElementById('content-area');
