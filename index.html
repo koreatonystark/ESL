@@ -55,14 +55,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
   padding:10px 16px;display:flex;align-items:center;gap:10px;
   flex-shrink:0;min-height:48px;
 }
-#back-btn{
+#home-btn, #list-toggle-btn{
   background:none;border:1px solid var(--border);border-radius:8px;
   width:34px;height:34px;cursor:pointer;color:var(--text2);
-  display:none;align-items:center;justify-content:center;
-  transition:all .15s;flex-shrink:0;font-size:18px;
+  align-items:center;justify-content:center;
+  transition:all .15s;flex-shrink:0;font-size:16px;
 }
-#back-btn.show{display:flex;}
-#back-btn:hover{border-color:var(--accent);color:var(--accent);}
+#home-btn:hover, #list-toggle-btn:hover{border-color:var(--accent);color:var(--accent);}
+#list-toggle-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(91,140,247,.1);}
 #topbar-title{font-size:16px;font-weight:700;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 #lock-btn{font-size:18px;background:none;border:none;cursor:pointer;padding:4px;opacity:.4;transition:opacity .15s;flex-shrink:0;}
 #lock-btn:hover{opacity:1;}
@@ -260,7 +260,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 
 <!-- TOPBAR -->
 <div id="topbar">
-  <button id="back-btn" onclick="goHome()" title="카드 메뉴로">‹</button>
+  <!-- 홈으로 (홈화면에서는 숨김) -->
+  <button id="home-btn" title="카드 메뉴" style="display:none">⊞</button>
+  <!-- 목록 토글 (카테고리 화면에서만 표시) -->
+  <button id="list-toggle-btn" title="목록" style="display:none">☰</button>
   <button class="nav-btn" id="prev-btn" title="이전">◀</button>
   <button class="nav-btn" id="next-btn" title="다음">▶</button>
   <div id="topbar-title">Video Note</div>
@@ -428,12 +431,12 @@ function goHome(){
   activeCat='';activeSIdx=-1;
   document.getElementById('home-screen').style.display='block';
   document.getElementById('list-screen').classList.remove('show');
-  document.getElementById('back-btn').classList.remove('show');
+  document.getElementById('home-btn').style.display='none';
+  document.getElementById('list-toggle-btn').style.display='none';
   document.getElementById('prev-btn').classList.add('hidden');
   document.getElementById('next-btn').classList.add('hidden');
   document.getElementById('topbar-title').textContent='Video Note';
   document.getElementById('yt-frame').src='about:blank';
-  // 히스토리: 홈은 스택 초기화
   history.replaceState({page:'home'}, '');
   renderHome();
 }
@@ -482,7 +485,9 @@ function openCat(cat){
   activeCat=cat;activeSIdx=-1;
   document.getElementById('home-screen').style.display='none';
   document.getElementById('list-screen').classList.add('show');
-  document.getElementById('back-btn').classList.add('show');
+  document.getElementById('home-btn').style.display='flex';
+  document.getElementById('list-toggle-btn').style.display='flex';
+  document.getElementById('list-toggle-btn').classList.add('active');
   document.getElementById('prev-btn').classList.remove('hidden');
   document.getElementById('next-btn').classList.remove('hidden');
   const label=cat==='__del__'?'🗑 삭제됨':cat==='__nocat__'?'미분류':cat;
@@ -555,6 +560,7 @@ function selectItem(sIdx){
     listVisible=false;
     document.getElementById('item-list').classList.add('collapsed');
     document.getElementById('toggle-list-btn').textContent='목록 보기';
+    document.getElementById('list-toggle-btn').classList.remove('active');
   }
 }
 
@@ -579,6 +585,7 @@ function toggleList(){
   listVisible=!listVisible;
   document.getElementById('item-list').classList.toggle('collapsed',!listVisible);
   document.getElementById('toggle-list-btn').textContent=listVisible?'목록 숨기기':'목록 보기';
+  document.getElementById('list-toggle-btn').classList.toggle('active', listVisible);
 }
 
 // ════════════════════════════════════════
@@ -683,6 +690,11 @@ document.addEventListener('keydown',e=>{
 //  SEARCH
 // ════════════════════════════════════════
 document.getElementById('search-input').addEventListener('input',e=>renderItems(e.target.value));
+document.getElementById('home-btn').addEventListener('click', goHome);
+document.getElementById('list-toggle-btn').addEventListener('click', ()=>{
+  toggleList();
+  // 목록 보이면 콘텐츠 영역은 그대로, 목록 숨기면 콘텐츠 전체 폭
+});
 document.getElementById('prev-btn').addEventListener('click',()=>navigate(-1));
 document.getElementById('next-btn').addEventListener('click',()=>navigate(1));
 
@@ -711,6 +723,8 @@ if('serviceWorker' in navigator){
 // 초기: 이전/다음 숨김 (홈 화면)
 document.getElementById('prev-btn').classList.add('hidden');
 document.getElementById('next-btn').classList.add('hidden');
+document.getElementById('home-btn').style.display='none';
+document.getElementById('list-toggle-btn').style.display='none';
 // 초기 히스토리
 history.replaceState({page:'home'}, '');
 initAuth();
