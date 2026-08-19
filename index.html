@@ -710,7 +710,32 @@ document.addEventListener('mousedown',e=>{
 // ════════════════════════════════════════
 function getYTId(url){if(!url)return'';const p=[/[?&]v=([^&#]+)/,/youtu\.be\/([^?&#]+)/,/embed\/([^?&#]+)/,/shorts\/([^?&#]+)/];for(const r of p){const m=url.match(r);if(m)return m[1];}return'';}
 function loadVideo(url){document.getElementById('yt-frame').src=getYTId(url)?`https://www.youtube.com/embed/${getYTId(url)}?rel=0&modestbranding=1&playsinline=1`:'about:blank';}
-function escHtml(s){return String(s).replace(/&(?!amp;|lt;|gt;|nbsp;)/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function escHtml(t){return String(t).replace(/&(?!amp;|lt;|gt;|nbsp;)/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function fixEmojiNumbers(s){
+  if(!s)return s;
+  return s
+    .replace(/1️⃣/g,'\x01N1\x01').replace(/2️⃣/g,'\x01N2\x01')
+    .replace(/3️⃣/g,'\x01N3\x01').replace(/4️⃣/g,'\x01N4\x01')
+    .replace(/5️⃣/g,'\x01N5\x01').replace(/6️⃣/g,'\x01N6\x01')
+    .replace(/7️⃣/g,'\x01N7\x01').replace(/8️⃣/g,'\x01N8\x01')
+    .replace(/9️⃣/g,'\x01N9\x01').replace(/🔟/g,'\x01N10\x01')
+    .replace(/(\d+)\?\?/g,'\x01N$1\x01')
+    .replace(/(\d+번)\s*\?/g,'$1 —');
+}
+function applyEmojiTokens(s){
+  return s.replace(/\x01N(\d+)\x01/g,(_,n)=>'<span style="color:#5b8cf7;font-weight:700">'+n+'.</span>');
+}
+function restoreHeadingEmoji(s){
+  var map=[
+    [/^\?+\s*(임상|Clinical)/i,'🏥 $1'],[/^\?+\s*(오답|Wrong|Incorrect)/i,'❌ $1'],
+    [/^\?+\s*(병태생리|Pathophys)/i,'🔬 $1'],[/^\?+\s*(연상|Summary|요약)/i,'🔗 $1'],
+    [/^\?+\s*(NPTE|빈출)/i,'🎯 $1'],[/^\?+\s*(문제\s*분석|Analysis)/i,'🧠 $1'],
+    [/^\?+\s*(정답|Correct)/i,'✅ $1'],[/^\?+\s*/,''],
+  ];
+  for(var i=0;i<map.length;i++){if(map[i][0].test(s))return s.replace(map[i][0],map[i][1]);}
+  return s;
+}
 
 function renderNoteContent(text){
   if(!text)return'';
@@ -719,45 +744,46 @@ function renderNoteContent(text){
   var tbl=[];
   var inTable=false;
   var inList=false;
+  var listTag='ul';
 
   function inl(s){
-    s=s.replace(/&(?!amp;|lt;|gt;|nbsp;)/g,'&amp;');
+    s=fixEmojiNumbers(s);
+    s=escHtml(s);
+    s=applyEmojiTokens(s);
     s=s.replace(/\*\*\*([^*]+)\*\*\*/g,'<strong><em>$1</em></strong>');
     s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
     s=s.replace(/\*([^*]+)\*/g,'<em>$1</em>');
     s=s.replace(/~~([^~]+)~~/g,'<span style="text-decoration:line-through;color:var(--text3)">$1</span>');
-    s=s.replace(/`([^`]+)`/g,'<code style="background:rgba(255,255,255,.1);padding:1px 5px;border-radius:4px;font-size:.92em">$1</code>');
-    // 인라인 이미지 ![alt](url)
+    s=s.replace(/`([^`]+)`/g,'<code style="background:rgba(255,255,255,.12);padding:1px 6px;border-radius:4px;font-size:.9em;color:#93c5fd">$1</code>');
     s=s.replace(/!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g,function(_,alt,url){
       return '<img src="'+url+'" alt="'+escHtml(alt)+'" style="max-width:100%;border-radius:8px;margin:6px 0;display:block;cursor:zoom-in" onclick="this.style.maxWidth=this.style.maxWidth===\'none\'?\'100%\':\'none\'">';
     });
-    // 인라인 링크 [text](url)
-    s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline">$1</a>');
-    // 인라인 URL (단독 아닌 것)
-    s=s.replace(/(https?:\/\/[^\s<"&]+)/g,function(url){
-      if(/\.(png|jpg|jpeg|gif|webp|svg)(\?[^\s]*)?$/i.test(url)){
+    s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener" style="color:#60a5fa;text-decoration:underline">$1</a>');
+    s=s.replace(/(https?:\/\/[^\s&"<]+)/g,function(url){
+      if(/\.(png|jpg|jpeg|gif|webp|svg)(\?[^\s]*)?$/i.test(url))
         return '<img src="'+url+'" alt="" style="max-width:100%;border-radius:8px;margin:4px 0;display:block;cursor:zoom-in" onclick="this.style.maxWidth=this.style.maxWidth===\'none\'?\'100%\':\'none\'">';
-      }
-      return '<a href="'+url+'" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;word-break:break-all">'+url+'</a>';
+      return '<a href="'+url+'" target="_blank" rel="noopener" style="color:#60a5fa;text-decoration:underline;word-break:break-all">'+url+'</a>';
     });
     return s;
   }
 
   function flushTable(){
     if(!tbl.length)return;
-    var html='<div style="overflow-x:auto;margin:12px 0"><table style="border-collapse:collapse;width:100%;font-size:14px;line-height:1.6">';
-    var dataRows=tbl.filter(function(r){return !/^\|[\s\-\|:]+\|$/.test(r.replace(/\s/g,''));});
-    dataRows.forEach(function(row,ri){
+    var rows=tbl.filter(function(r){return !/^\|[\s\-|:]+\|$/.test(r.replace(/\s/g,''));});
+    var html='<div style="overflow-x:auto;margin:14px 0"><table style="border-collapse:collapse;width:100%;font-size:14px;line-height:1.65">';
+    rows.forEach(function(row,ri){
       var cells=row.split('|').slice(1,-1);
       html+='<tr>';
-      cells.forEach(function(c){
-        if(ri===0){
-          html+='<th style="padding:8px 14px;text-align:left;font-weight:700;color:var(--accent);border-bottom:2px solid var(--accent);white-space:nowrap">'+inl(c.trim())+'</th>';
-        }else{
-          var bg=ri%2===0?'rgba(255,255,255,.03)':'transparent';
-          html+='<td style="padding:7px 14px;text-align:left;color:var(--text);border-bottom:1px solid rgba(255,255,255,.06);background:'+bg+'">'+inl(c.trim())+'</td>';
-        }
-      });
+      if(ri===0){
+        cells.forEach(function(c){
+          html+='<th style="padding:9px 14px;text-align:left;font-weight:700;color:#93c5fd;border-bottom:2px solid rgba(91,140,247,.5);white-space:nowrap">'+inl(c.trim())+'</th>';
+        });
+      }else{
+        cells.forEach(function(c){
+          var bg=ri%2===0?'rgba(255,255,255,.025)':'transparent';
+          html+='<td style="padding:8px 14px;color:var(--text);border-bottom:1px solid rgba(255,255,255,.07);background:'+bg+'">'+inl(c.trim())+'</td>';
+        });
+      }
       html+='</tr>';
     });
     html+='</table></div>';
@@ -767,97 +793,96 @@ function renderNoteContent(text){
 
   function flushList(){
     if(!inList)return;
-    out.push('</ul>');
+    out.push('</'+listTag+'>');
     inList=false;
   }
 
   lines.forEach(function(line){
-    var t=line.trim();
-    // 줄 시작 깨진 문자 제거
-    t=t.replace(/^\?+\s*/,'');
+    var t=line.trim().replace(/^\?+\s*/,'');
 
     // 테이블
     if(t.startsWith('|')&&t.endsWith('|')){
       flushList();inTable=true;tbl.push(t);return;
     }
-    if(inTable){flushTable();}
+    if(inTable)flushTable();
 
     // 구분선
-    if(/^-{3,}$/.test(t)){
+    if(/^[-*]{3,}$/.test(t)){
       flushList();
-      out.push('<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">');return;
+      out.push('<hr style="border:none;border-top:1px solid rgba(255,255,255,.1);margin:14px 0">');return;
     }
 
-    // 제목 h1~h4
+    // 제목
     var hm=t.match(/^(#{1,4})\s+(.+)/);
     if(hm){
       flushList();
       var lvl=hm[1].length;
-      var sz=['1.25em','1.1em','1em','0.95em'][lvl-1];
-      var mt=lvl===1?'20px':'14px';
-      var colors=['#e2e8ff','#b0c4ff','#a0b4f0','#8aabf0'];
-      var bb=lvl===1?'border-bottom:1px solid rgba(91,140,247,.3);padding-bottom:8px;':'';
-      out.push('<div style="font-size:'+sz+';font-weight:700;color:'+colors[lvl-1]+';margin:'+mt+' 0 6px;'+bb+'">'+inl(hm[2])+'</div>');return;
+      var sz=['1.22em','1.08em','1em','0.95em'][lvl-1];
+      var mt=lvl===1?'22px':'14px';
+      var clr=['#e8eeff','#b0c4ff','#93c5fd','#7db5f0'][lvl-1];
+      var bb=lvl===1?'border-bottom:1px solid rgba(91,140,247,.25);padding-bottom:8px;':'';
+      out.push('<div style="font-size:'+sz+';font-weight:700;color:'+clr+';margin:'+mt+' 0 8px;'+bb+'">'+inl(restoreHeadingEmoji(hm[2]))+'</div>');
+      return;
     }
 
     // 인용구
     var qm=t.match(/^>\s*(.*)/);
     if(qm){
       flushList();
-      out.push('<div style="border-left:3px solid var(--accent);padding:8px 14px;margin:10px 0;background:rgba(91,140,247,.06);border-radius:0 8px 8px 0;font-size:14px;color:var(--text2);line-height:1.7">'+inl(qm[1])+'</div>');return;
+      out.push('<div style="border-left:3px solid #5b8cf7;padding:8px 14px;margin:10px 0;background:rgba(91,140,247,.08);border-radius:0 8px 8px 0;font-size:14px;color:var(--text2);line-height:1.7">'+inl(qm[1])+'</div>');
+      return;
     }
 
-    // 리스트 - * 또는 숫자
+    // 번호 리스트
+    var nlm=t.match(/^(\d+)\.\s+(.+)/);
+    if(nlm){
+      if(!inList||listTag!=='ol'){flushList();out.push('<ol style="margin:6px 0 6px 20px;padding:0">');inList=true;listTag='ol';}
+      out.push('<li style="margin:4px 0;font-size:15px;line-height:1.75;color:var(--text)">'+inl(nlm[2])+'</li>');return;
+    }
+
+    // 불릿 리스트
     var lm=t.match(/^[-*]\s+(.+)/);
     if(lm){
-      if(!inList){out.push('<ul style="margin:6px 0 6px 18px;padding:0;list-style:disc">');inList=true;}
-      out.push('<li style="margin:3px 0;font-size:15px;line-height:1.7;color:var(--text)">'+inl(lm[1])+'</li>');return;
-    }
-    var nlm=t.match(/^\d+\.\s+(.+)/);
-    if(nlm){
-      if(!inList){out.push('<ol style="margin:6px 0 6px 18px;padding:0">');inList=true;}
-      out.push('<li style="margin:3px 0;font-size:15px;line-height:1.7;color:var(--text)">'+inl(nlm[1])+'</li>');return;
+      if(!inList||listTag!=='ul'){flushList();out.push('<ul style="margin:6px 0 6px 18px;padding:0;list-style:disc">');inList=true;listTag='ul';}
+      out.push('<li style="margin:4px 0;font-size:15px;line-height:1.75;color:var(--text)">'+inl(lm[1])+'</li>');return;
     }
 
     // 빈 줄
-    if(!t){flushList();out.push('<div style="height:6px"></div>');return;}
+    if(!t){flushList();out.push('<div style="height:5px"></div>');return;}
 
-    // 단독 URL 줄
+    // 단독 URL
     if(/^https?:\/\/\S+$/.test(t)){
       flushList();
       var url=t;
-      // 유튜브 → 썸네일 탭하면 인앱 재생
       var ytm=url.match(/youtu\.be\/([^?&#\s]+)/)||url.match(/youtube\.com\/(?:watch\?v=|shorts\/)([^?&#\s]+)/);
       if(ytm){
         var vid=ytm[1];
         var uid='yt_'+Math.random().toString(36).slice(2,7);
-        var embedSrc='https://www.youtube-nocookie.com/embed/'+vid+'?autoplay=1&playsinline=1&rel=0';
+        var esrc='https://www.youtube-nocookie.com/embed/'+vid+'?autoplay=1&playsinline=1&rel=0';
         out.push(
-          '<div id="'+uid+'" style="margin:12px 0;border-radius:10px;overflow:hidden;border:1px solid var(--border)">'
-          +'<div id="'+uid+'_thumb" style="position:relative;cursor:pointer;line-height:0" onclick="(function(){'
-          +'var w=document.getElementById(\''+uid+'_wrap\');'
-          +'var th=document.getElementById(\''+uid+'_thumb\');'
-          +'var f=document.getElementById(\''+uid+'_frame\');'
-          +'f.src=\''+embedSrc+'\';th.style.display=\'none\';w.style.display=\'block\''
+          '<div id="'+uid+'" style="margin:12px 0;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.12)">'
+          +'<div id="'+uid+'_th" style="position:relative;cursor:pointer;line-height:0" onclick="(function(){'
+          +'var w=document.getElementById(\''+uid+'_w\');'
+          +'var th=document.getElementById(\''+uid+'_th\');'
+          +'var f=document.getElementById(\''+uid+'_f\');'
+          +'f.src=\''+esrc+'\';th.style.display=\'none\';w.style.display=\'block\''
           +'})()">'
-          +'<img src="https://img.youtube.com/vi/'+vid+'/hqdefault.jpg" alt="" style="width:100%;height:auto;display:block">'
+          +'<img src="https://img.youtube.com/vi/'+vid+'/hqdefault.jpg" style="width:100%;display:block">'
           +'<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3)">'
           +'<div style="width:56px;height:40px;background:#ff0000;border-radius:8px;display:flex;align-items:center;justify-content:center">'
           +'<div style="width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-left:18px solid #fff;margin-left:4px"></div>'
           +'</div></div></div>'
-          +'<div id="'+uid+'_wrap" style="display:none;position:relative;padding-bottom:56.25%;height:0">'
-          +'<iframe id="'+uid+'_frame" src="" allowfullscreen allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none"></iframe>'
+          +'<div id="'+uid+'_w" style="display:none;position:relative;padding-bottom:56.25%;height:0">'
+          +'<iframe id="'+uid+'_f" src="" allowfullscreen allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" style="position:absolute;inset:0;width:100%;height:100%;border:none"></iframe>'
           +'</div></div>'
         );
         return;
       }
-      // 이미지 URL
       if(/\.(png|jpg|jpeg|gif|webp|svg)(\?[^\s]*)?$/i.test(url)){
-        out.push('<div style="margin:10px 0"><img src="'+escHtml(url)+'" alt="" style="max-width:100%;border-radius:8px;display:block;cursor:zoom-in" onclick="this.style.maxWidth=this.style.maxWidth===\'none\'?\'100%\':\'none\'"></div>');
+        out.push('<div style="margin:10px 0"><img src="'+escHtml(url)+'" style="max-width:100%;border-radius:8px;display:block;cursor:zoom-in" onclick="this.style.maxWidth=this.style.maxWidth===\'none\'?\'100%\':\'none\'"></div>');
         return;
       }
-      // 일반 URL
-      out.push('<div style="margin:4px 0"><a href="'+escHtml(url)+'" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;word-break:break-all;font-size:14px">'+escHtml(url)+'</a></div>');
+      out.push('<div style="margin:4px 0"><a href="'+escHtml(url)+'" target="_blank" rel="noopener" style="color:#60a5fa;text-decoration:underline;word-break:break-all;font-size:14px">'+escHtml(url)+'</a></div>');
       return;
     }
 
