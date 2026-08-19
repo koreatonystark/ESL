@@ -463,7 +463,10 @@ function goHome(){
   activeCat='';activeSIdx=-1;
   document.getElementById('home-screen').style.display='block';
   document.getElementById('list-screen').classList.remove('show');
-  document.getElementById('list-toggle-btn').style.display='none';
+  const _ltb=document.getElementById('list-toggle-btn');
+  _ltb.style.display='none';
+  _ltb.textContent='☰ 목록';
+  _ltb.dataset.mode='list';
   document.getElementById('prev-btn').classList.add('hidden');
   document.getElementById('next-btn').classList.add('hidden');
   document.getElementById('topbar-title').textContent='Video Note';
@@ -543,7 +546,10 @@ function openCat(cat, sheetId=null){
   activeCat=cat;activeSIdx=-1;
   document.getElementById('home-screen').style.display='none';
   document.getElementById('list-screen').classList.add('show');
-  document.getElementById('list-toggle-btn').style.display='flex';
+  const ltb=document.getElementById('list-toggle-btn');
+  ltb.style.display='flex';
+  ltb.textContent='☰ 목록';
+  ltb.dataset.mode='list';
   document.getElementById('prev-btn').classList.remove('hidden');
   document.getElementById('next-btn').classList.remove('hidden');
   const label=cat==='__del__'?'🗑 삭제됨':cat==='__nocat__'?'미분류':cat;
@@ -605,6 +611,10 @@ function renderItems(filter=''){
 // ════════════════════════════════════════
 function selectItem(sIdx){
   closeItemMenu();
+  // 버튼을 "메인화면" 모드로 전환
+  const ltb=document.getElementById('list-toggle-btn');
+  ltb.textContent='메인화면';
+  ltb.dataset.mode='home';
   activeSIdx=sIdx;
   const it=sheetItems[sIdx];
   renderItems(document.getElementById('search-input').value);
@@ -735,17 +745,18 @@ function renderNoteContent(text){
 
   function flushTable(){
     if(!tbl.length)return;
-    var html='<div style="overflow-x:auto;margin:10px 0"><table style="border-collapse:collapse;width:100%;font-size:14px;line-height:1.6">';
+    var html='<div style="overflow-x:auto;margin:12px 0"><table style="border-collapse:collapse;width:100%;font-size:14px;line-height:1.6">';
     var dataRows=tbl.filter(function(r){return !/^\|[\s\-\|:]+\|$/.test(r.replace(/\s/g,''));});
     dataRows.forEach(function(row,ri){
       var cells=row.split('|').slice(1,-1);
-      var tag=ri===0?'th':'td';
-      var altBg=ri>0&&ri%2===0?'background:rgba(255,255,255,.03)':'';
-      html+='<tr style="border-bottom:1px solid var(--border);'+altBg+'">';
+      html+='<tr>';
       cells.forEach(function(c){
-        html+='<'+tag+' style="padding:7px 10px;text-align:left;'+
-          (ri===0?'font-weight:700;color:var(--accent2,var(--accent));border-bottom:2px solid rgba(91,140,247,.5)':'color:var(--text)')+
-          '">'+inl(c.trim())+'</'+tag+'>';
+        if(ri===0){
+          html+='<th style="padding:8px 14px;text-align:left;font-weight:700;color:var(--accent);border-bottom:2px solid var(--accent);white-space:nowrap">'+inl(c.trim())+'</th>';
+        }else{
+          var bg=ri%2===0?'rgba(255,255,255,.03)':'transparent';
+          html+='<td style="padding:7px 14px;text-align:left;color:var(--text);border-bottom:1px solid rgba(255,255,255,.06);background:'+bg+'">'+inl(c.trim())+'</td>';
+        }
       });
       html+='</tr>';
     });
@@ -784,15 +795,16 @@ function renderNoteContent(text){
       var lvl=hm[1].length;
       var sz=['1.25em','1.1em','1em','0.95em'][lvl-1];
       var mt=lvl===1?'20px':'14px';
-      var bb=lvl===1?'border-bottom:1px solid var(--border);padding-bottom:6px;':'';
-      out.push('<div style="font-size:'+sz+';font-weight:700;color:#b0c4ff;margin:'+mt+' 0 6px;'+bb+'">'+inl(hm[2])+'</div>');return;
+      var colors=['#e2e8ff','#b0c4ff','#a0b4f0','#8aabf0'];
+      var bb=lvl===1?'border-bottom:1px solid rgba(91,140,247,.3);padding-bottom:8px;':'';
+      out.push('<div style="font-size:'+sz+';font-weight:700;color:'+colors[lvl-1]+';margin:'+mt+' 0 6px;'+bb+'">'+inl(hm[2])+'</div>');return;
     }
 
     // 인용구
     var qm=t.match(/^>\s*(.*)/);
     if(qm){
       flushList();
-      out.push('<div style="border-left:3px solid var(--accent);padding:6px 12px;margin:6px 0;background:rgba(91,140,247,.08);border-radius:0 6px 6px 0;font-size:14px;color:var(--text2)">'+inl(qm[1])+'</div>');return;
+      out.push('<div style="border-left:3px solid var(--accent);padding:8px 14px;margin:10px 0;background:rgba(91,140,247,.06);border-radius:0 8px 8px 0;font-size:14px;color:var(--text2);line-height:1.7">'+inl(qm[1])+'</div>');return;
     }
 
     // 리스트 - * 또는 숫자
@@ -909,7 +921,10 @@ document.addEventListener('keydown',e=>{
 //  SEARCH
 // ════════════════════════════════════════
 document.getElementById('search-input').addEventListener('input',e=>renderItems(e.target.value));
-document.getElementById('list-toggle-btn').addEventListener('click', goHome);
+document.getElementById('list-toggle-btn').addEventListener('click', function(){
+  if(this.dataset.mode==='home') goHome();
+  else toggleList();
+});
 document.getElementById('prev-btn').addEventListener('click',()=>navigate(-1));
 document.getElementById('next-btn').addEventListener('click',()=>navigate(1));
 
