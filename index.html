@@ -57,13 +57,21 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 }
 #list-toggle-btn{
   background:none;border:1px solid var(--border);border-radius:8px;
-  height:34px;padding:0 12px;cursor:pointer;color:var(--text2);
+  width:34px;height:34px;cursor:pointer;color:var(--text2);
   display:flex;align-items:center;justify-content:center;
-  transition:all .15s;flex-shrink:0;font-size:13px;font-weight:600;
-  font-family:var(--font);white-space:nowrap;
+  transition:all .15s;flex-shrink:0;font-size:18px;
 }
 #list-toggle-btn:hover{border-color:var(--accent);color:var(--accent);}
 #list-toggle-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(91,140,247,.1);}
+#main-menu-btn{
+  width:100%;padding:12px 16px;
+  background:rgba(91,140,247,.08);
+  border:none;border-bottom:1px solid var(--border);
+  color:var(--accent);font-size:14px;font-weight:600;
+  font-family:var(--font);text-align:left;cursor:pointer;
+  flex-shrink:0;transition:background .12s;
+}
+#main-menu-btn:hover{background:rgba(91,140,247,.18);}
 #topbar-title{font-size:16px;font-weight:700;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 #lock-btn{font-size:18px;background:none;border:none;cursor:pointer;padding:4px;opacity:.4;transition:opacity .15s;flex-shrink:0;}
 #lock-btn:hover{opacity:1;}
@@ -275,7 +283,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 
 <!-- TOPBAR -->
 <div id="topbar">
-  <button id="list-toggle-btn" style="display:none">메인화면</button>
+  <button id="list-toggle-btn" style="display:none">☰</button>
   <button class="nav-btn" id="prev-btn" title="이전">◀</button>
   <button class="nav-btn" id="next-btn" title="다음">▶</button>
   <div id="topbar-title">Video Note</div>
@@ -295,6 +303,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 
     <!-- 사이드바 목록 -->
     <div id="item-list">
+      <button id="main-menu-btn" onclick="goHome()">⊞ 메인화면</button>
       <div id="list-search"><input type="text" id="search-input" placeholder="검색…" autocomplete="off"></div>
       <div id="list-items"></div>
       <div id="list-footer">
@@ -463,10 +472,7 @@ function goHome(){
   activeCat='';activeSIdx=-1;
   document.getElementById('home-screen').style.display='block';
   document.getElementById('list-screen').classList.remove('show');
-  const _ltb=document.getElementById('list-toggle-btn');
-  _ltb.style.display='none';
-  _ltb.textContent='☰ 목록';
-  _ltb.dataset.mode='list';
+  document.getElementById('list-toggle-btn').style.display='none';
   document.getElementById('prev-btn').classList.add('hidden');
   document.getElementById('next-btn').classList.add('hidden');
   document.getElementById('topbar-title').textContent='Video Note';
@@ -546,10 +552,7 @@ function openCat(cat, sheetId=null){
   activeCat=cat;activeSIdx=-1;
   document.getElementById('home-screen').style.display='none';
   document.getElementById('list-screen').classList.add('show');
-  const ltb=document.getElementById('list-toggle-btn');
-  ltb.style.display='flex';
-  ltb.textContent='☰ 목록';
-  ltb.dataset.mode='list';
+  document.getElementById('list-toggle-btn').style.display='flex';
   document.getElementById('prev-btn').classList.remove('hidden');
   document.getElementById('next-btn').classList.remove('hidden');
   const label=cat==='__del__'?'🗑 삭제됨':cat==='__nocat__'?'미분류':cat;
@@ -611,10 +614,7 @@ function renderItems(filter=''){
 // ════════════════════════════════════════
 function selectItem(sIdx){
   closeItemMenu();
-  // 버튼을 "메인화면" 모드로 전환
-  const ltb=document.getElementById('list-toggle-btn');
-  ltb.textContent='메인화면';
-  ltb.dataset.mode='home';
+
   activeSIdx=sIdx;
   const it=sheetItems[sIdx];
   renderItems(document.getElementById('search-input').value);
@@ -946,10 +946,7 @@ document.addEventListener('keydown',e=>{
 //  SEARCH
 // ════════════════════════════════════════
 document.getElementById('search-input').addEventListener('input',e=>renderItems(e.target.value));
-document.getElementById('list-toggle-btn').addEventListener('click', function(){
-  if(this.dataset.mode==='home') goHome();
-  else toggleList();
-});
+document.getElementById('list-toggle-btn').addEventListener('click', toggleList);
 document.getElementById('prev-btn').addEventListener('click',()=>navigate(-1));
 document.getElementById('next-btn').addEventListener('click',()=>navigate(1));
 
