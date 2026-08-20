@@ -287,7 +287,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
   <button class="nav-btn" id="prev-btn" title="이전">◀</button>
   <button class="nav-btn" id="next-btn" title="다음">▶</button>
   <div id="topbar-title">Video Note</div>
-  <button id="lock-btn" onclick="lockApp()">🔒</button>
+  <button id="lock-btn" onclick="lockApp()" style="display:none">🔒</button>
 </div>
 
 <!-- APP -->
@@ -997,7 +997,7 @@ document.getElementById('next-btn').classList.add('hidden');
 document.getElementById('list-toggle-btn').style.display='none';
 // 초기 히스토리
 history.replaceState({page:'home'}, '');
-initAuth();
+enterApp();
 </script>
 </body>
 </html>
