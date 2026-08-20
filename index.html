@@ -778,25 +778,19 @@ function renderNoteContent(text){
 
   function flushTable(){
     if(!tbl.length)return;
-    // 구분자 행 제외
-    var rows=tbl.filter(function(r){return !/^\|[\s\-|:]+\|$/.test(r.replace(/\s/g,''));});
-    if(!rows.length){tbl=[];inTable=false;return;}
-    var html='<div style="overflow-x:auto;margin:14px 0">'
-      +'<table style="border-collapse:collapse;width:100%;font-size:14px;line-height:1.65">';
-    rows.forEach(function(row,ri){
-      var cells=row.split('|').filter(function(_,i,a){return i>0&&i<a.length-1;});
-      html+='<tr>';
-      if(ri===0){
-        cells.forEach(function(c){
-          html+='<th style="padding:9px 16px;text-align:left;font-weight:700;color:#93c5fd;'
-            +'border-bottom:2px solid rgba(91,140,247,.45);white-space:nowrap">'+inl(c.trim())+'</th>';
-        });
-      }else{
-        var bg=ri%2===0?'rgba(255,255,255,.025)':'transparent';
-        cells.forEach(function(c){
-          html+='<td style="padding:8px 16px;color:var(--text);border-bottom:1px solid rgba(255,255,255,.07);background:'+bg+'">'+inl(c.trim())+'</td>';
-        });
-      }
+    var dataRows=tbl.filter(function(r){return !/^\|[\s\-\|:]+\|$/.test(r.replace(/\s/g,''));});
+    if(!dataRows.length){tbl=[];inTable=false;return;}
+    var html='<div style="overflow-x:auto;margin:10px 0"><table style="border-collapse:collapse;width:100%;font-size:14px;line-height:1.6">';
+    dataRows.forEach(function(row,ri){
+      var cells=row.split('|').slice(1,-1);
+      var tag=ri===0?'th':'td';
+      var altBg=ri>0&&ri%2===0?'background:rgba(255,255,255,.03)':'';
+      html+='<tr style="border-bottom:1px solid var(--border);'+altBg+'">';
+      cells.forEach(function(c){
+        html+='<'+tag+' style="padding:7px 10px;text-align:left;'+
+          (ri===0?'font-weight:700;color:var(--accent2,#93c5fd);border-bottom:2px solid rgba(59,130,246,.6)':'color:var(--text)')+
+          '">'+inl(c.trim())+'</'+tag+'>';
+      });
       html+='</tr>';
     });
     html+='</table></div>';
