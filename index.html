@@ -788,10 +788,10 @@ function renderNoteContent(text){
       cells.forEach(function(c){
         if(ri===0){
           html+='<th style="padding:9px 14px;text-align:left;font-weight:700;color:#93c5fd;'
-            +'border-bottom:2px solid rgba(91,140,247,.5)">'+inl(c.trim())+'</th>';
+            +'border-bottom:2px solid rgba(91,140,247,.5);border-left:none;border-right:none">'+inl(c.trim())+'</th>';
         }else{
           html+='<td style="padding:8px 14px;text-align:left;color:var(--text);'
-            +'border-bottom:1px solid rgba(255,255,255,.08)">'+inl(c.trim())+'</td>';
+            +'border-bottom:1px solid rgba(255,255,255,.08);border-left:none;border-right:none">'+inl(c.trim())+'</td>';
         }
       });
       html+='</tr>';
